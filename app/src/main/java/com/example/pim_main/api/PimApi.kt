@@ -16,9 +16,8 @@ import java.net.URL
 object PimApi {
     private const val TAG = "PimApi"
 
-    // TODO: Replace with your PC's local IP address (e.g., "192.168.1.100")
-    // Find it by running `ipconfig` in terminal and looking for IPv4 Address
-    private const val BASE_URL = "http://192.168.1.107:3000"
+    // Production backend URL on Render
+    private const val BASE_URL = "https://pim-backend-auhy.onrender.com"
 
     /**
      * Send a message to the PIM backend and get an AI-generated reply
