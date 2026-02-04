@@ -1,9 +1,50 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+/**
+ * API Key Rotation System
+ * - Loads multiple keys from environment
+ * - Auto-switches to next key on failure
+ * - Cycles through all available keys
+ */
+const API_KEYS: string[] = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4,
+    process.env.GEMINI_API_KEY_5,
+].filter((key): key is string => !!key); // Filter out undefined/empty keys
 
-// The "Brain" - Gemini 2.5 Flash (fast & capable)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+if (API_KEYS.length === 0) {
+    throw new Error('No Gemini API keys found! Set GEMINI_API_KEY in .env');
+}
+
+console.log(`🔑 Loaded ${API_KEYS.length} Gemini API key(s)`);
+
+let currentKeyIndex = 0;
+
+/**
+ * Get the current API key
+ */
+function getCurrentKey(): string {
+    return API_KEYS[currentKeyIndex];
+}
+
+/**
+ * Rotate to the next API key
+ */
+function rotateKey(): void {
+    const oldIndex = currentKeyIndex;
+    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+    console.log(`🔄 Rotated API key: ${oldIndex + 1} → ${currentKeyIndex + 1} (of ${API_KEYS.length})`);
+}
+
+/**
+ * Get a fresh Gemini model instance with current key
+ */
+function getModel(): GenerativeModel {
+    const genAI = new GoogleGenerativeAI(getCurrentKey());
+    return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+}
 
 /**
  * The System Prompt - This is YOUR personality.
@@ -42,6 +83,7 @@ export interface ChatContext {
 
 /**
  * Generate a response using Gemini with conversation history.
+ * Automatically rotates API keys on failure.
  */
 export async function generateReply(context: ChatContext): Promise<string> {
     const { sender, message, history } = context;
@@ -52,27 +94,56 @@ export async function generateReply(context: ChatContext): Promise<string> {
         parts: [{ text: h.content }],
     }));
 
-    // Start chat with history
-    const chat = model.startChat({
-        history: [
-            {
-                role: 'user',
-                parts: [{ text: SYSTEM_PROMPT }],
-            },
-            {
-                role: 'model',
-                parts: [{ text: 'Got it. I am Aditya now. Ready to reply to DMs.' }],
-            },
-            ...conversationHistory,
-        ],
-    });
-
-    // Generate response
     const prompt = `[DM from ${sender}]: ${message}`;
-    const result = await chat.sendMessage(prompt);
-    const response = result.response.text();
 
-    return response.trim();
+    // Try each API key until one works
+    let lastError: Error | null = null;
+    const maxRetries = API_KEYS.length;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const model = getModel();
+
+            // Start chat with history
+            const chat = model.startChat({
+                history: [
+                    {
+                        role: 'user',
+                        parts: [{ text: SYSTEM_PROMPT }],
+                    },
+                    {
+                        role: 'model',
+                        parts: [{ text: 'Got it. I am Aditya now. Ready to reply to DMs.' }],
+                    },
+                    ...conversationHistory,
+                ],
+            });
+
+            // Generate response
+            const result = await chat.sendMessage(prompt);
+            const response = result.response.text();
+
+            console.log(`✅ Response generated using key ${currentKeyIndex + 1}`);
+            return response.trim();
+
+        } catch (error: any) {
+            lastError = error;
+            console.error(`❌ Key ${currentKeyIndex + 1} failed: ${error.message}`);
+
+            // Check if it's a rate limit or bad request error
+            if (error.status === 429 || error.status === 400 || error.message?.includes('quota') || error.message?.includes('rate')) {
+                console.log(`⚠️ Rate limit or quota exceeded on key ${currentKeyIndex + 1}`);
+                rotateKey();
+            } else {
+                // For other errors, still try rotating
+                rotateKey();
+            }
+        }
+    }
+
+    // All keys exhausted
+    console.error(`💀 All ${API_KEYS.length} API keys failed!`);
+    throw lastError || new Error('All API keys exhausted');
 }
 
 /**
