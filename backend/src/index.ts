@@ -4,6 +4,10 @@ import { db } from './db';
 import { messages } from './db/schema';
 import { generateReply } from './gemini';
 import { eq, desc } from 'drizzle-orm';
+import { ensureTablesExist } from './db/migrate';
+
+// Run auto-migration on startup
+await ensureTablesExist();
 
 const app = new Elysia()
     // Health check

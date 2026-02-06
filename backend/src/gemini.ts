@@ -33,8 +33,13 @@ let currentKeyIndex = 0;
  * Get the current API key
  */
 function getCurrentKey(): string {
-    return API_KEYS[currentKeyIndex];
+    const key = API_KEYS[currentKeyIndex];
+    if (!key) {
+        throw new Error('No API key available at current index');
+    }
+    return key;
 }
+
 
 /**
  * Rotate to the next API key
@@ -106,7 +111,8 @@ You are NOT an AI assistant. You are a real human texting on Instagram.
 
 ## 📝 CURRENT CONTEXT
 Talking to: ${sender}
-History: ${conversationHistory}`;}
+History: ${conversationHistory}`;
+}
 
 export interface ChatContext {
     sender: string;
