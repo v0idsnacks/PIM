@@ -1,0 +1,15 @@
+app = "pim-backend"
+primary_region = "bom"
+
+[build]
+builder = "oven/bun"
+
+[http_service]
+internal_port = 3000
+force_https = true
+auto_stop_machines = false
+auto_start_machines = true
+min_machines_running = 1
+
+[env]
+NODE_ENV = "production"

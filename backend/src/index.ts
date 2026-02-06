@@ -107,7 +107,7 @@ const app = new Elysia()
                 success: false,
                 sender,
                 originalMessage: message,
-                reply: "can't talk rn, text you later",
+                reply: "aree rukna thoda kaam h baad me baat karta hu...",
                 error: errorMsg,
             };
         }
