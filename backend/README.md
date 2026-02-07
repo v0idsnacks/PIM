@@ -1,6 +1,6 @@
 # PIM Backend
 
-The "Brain" - Bun + Elysia + Gemini server that processes Instagram DMs.
+The "Brain" - Bun + Elysia + Groq (Llama 3.3) server that processes Instagram DMs.
 
 ## Setup
 
@@ -10,7 +10,8 @@ cp .env.example .env
 ```
 
 2. Fill in your environment variables:
-   - `GEMINI_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - `GROQ_API_KEY` - Get from [Groq Console](https://console.groq.com/keys) (free, instant)
+   - `GROQ_API_KEY_2`, `GROQ_API_KEY_3` - Optional: Additional keys for rotation
    - `DATABASE_URL` - PostgreSQL connection string (Railway provides this)
 
 3. Install dependencies:
@@ -34,8 +35,10 @@ bun run dev
 |--------|----------|-------------|
 | GET | `/` | Health check |
 | POST | `/chat` | Process incoming DM (main endpoint) |
-| POST | `/test` | Test Gemini without database |
+| POST | `/test` | Test LLM without database |
 | GET | `/history/:sender` | Get conversation history |
+| GET | `/keys` | Check API key status |
+| POST | `/keys/reset` | Reset key statistics |
 
 ## Testing
 

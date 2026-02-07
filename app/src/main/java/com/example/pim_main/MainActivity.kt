@@ -121,7 +121,7 @@ fun PimApp() {
         ) {
             // Logo/Title
             Text(
-                text = "🤖",
+                text = ">_<",
                 fontSize = 48.sp
             )
 

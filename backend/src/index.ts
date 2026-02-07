@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Elysia, t } from 'elysia';
 import { db } from './db';
 import { messages } from './db/schema';
-import { generateReply } from './gemini';
+import { generateReply } from './llm';
 import { eq, desc } from 'drizzle-orm';
 import { ensureTablesExist } from './db/migrate';
 
@@ -130,7 +130,7 @@ const app = new Elysia()
 
         console.log(`🧪 [${new Date().toISOString()}] Test message: ${message}`);
 
-        const { quickReply } = await import('./gemini');
+        const { quickReply } = await import('./llm');
         const reply = await quickReply(message);
 
         const totalTime = Date.now() - startTime;
@@ -169,22 +169,30 @@ const app = new Elysia()
 
     // API key status check
     .get('/keys', async () => {
-        const { getKeyStatus } = await import('./gemini');
+        const { getKeyStatus } = await import('./llm');
         return getKeyStatus();
+    })
+
+    // Reset API key stats (for debugging)
+    .post('/keys/reset', async () => {
+        const { resetKeyStats, getKeyStatus } = await import('./llm');
+        resetKeyStats();
+        return { message: 'Key stats reset', status: getKeyStatus() };
     })
 
     .listen(process.env.PORT || 3000);
 
 console.log(`
-🚀 PIM Backend is running!
+🚀 PIM Backend is running! (Powered by Groq + Llama 3.3)
 📍 http://localhost:${app.server?.port}
 
 Endpoints:
   GET  /          - Health check
   POST /chat      - Process incoming DM
-  POST /test      - Test Gemini without DB
+  POST /test      - Test LLM without DB
   GET  /history/:sender - Get conversation history
   GET  /keys      - Check API key status
+  POST /keys/reset - Reset key statistics
 `);
 
 export type App = typeof app;

@@ -4,15 +4,11 @@ services:
     runtime: docker
     rootDir: backend
     envVars:
-      - key: GEMINI_API_KEY
-        sync: false  # Set manually in Render dashboard
-      - key: GEMINI_API_KEY_2
+      - key: GROQ_API_KEY
+        sync: false  # Set manually in Render dashboard (get from console.groq.com)
+      - key: GROQ_API_KEY_2
         sync: false  # Optional: Set for API key rotation
-      - key: GEMINI_API_KEY_3
-        sync: false  # Optional: Set for API key rotation
-      - key: GEMINI_API_KEY_4
-        sync: false  # Optional: Set for API key rotation
-      - key: GEMINI_API_KEY_5
+      - key: GROQ_API_KEY_3
         sync: false  # Optional: Set for API key rotation
       - key: DATABASE_URL
         sync: false  # Set manually in Render dashboard

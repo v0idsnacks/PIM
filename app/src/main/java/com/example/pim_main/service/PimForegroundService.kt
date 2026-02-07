@@ -208,6 +208,8 @@ class PimForegroundService : Service() {
     private suspend fun performPing() {
         try {
             Log.d(TAG, "🏓 Pinging backend...")
+            updateNotification("Pinging backend...")  // Show user we're actively checking
+            
             val startTime = System.currentTimeMillis()
 
             val isAlive = PimApi.pingBackend()
@@ -219,17 +221,20 @@ class PimForegroundService : Service() {
                 successfulPings++
                 val status = "✅ Backend alive (${responseTime}ms) | ✓$successfulPings ✗$failedPings"
                 Log.d(TAG, status)
-                updateNotification("Backend connected • Last ping: ${formatTime(lastPingTime)}")
+                // Show response time to help debug slow cold starts
+                val timeStr = if (responseTime > 5000) "(cold start: ${responseTime/1000}s)" else "(${responseTime}ms)"
+                updateNotification("Backend connected $timeStr • ${formatTime(lastPingTime)}")
             } else {
                 failedPings++
                 val status = "⚠️ Backend unreachable | ✓$successfulPings ✗$failedPings"
                 Log.w(TAG, status)
-                updateNotification("Backend unreachable • Retrying...")
+                // More informative message
+                updateNotification("Backend may be sleeping • Will retry in 8min")
             }
         } catch (e: Exception) {
             failedPings++
             Log.e(TAG, "❌ Ping error: ${e.message}")
-            updateNotification("Connection error • Retrying...")
+            updateNotification("Network issue • Will retry in 8min")
         }
     }
 

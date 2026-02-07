@@ -112,34 +112,44 @@ object PimApi {
      * Lightweight ping to keep backend alive
      * Used by BackendKeepAliveWorker to prevent cold starts on Render
      *
-     * This is a simple HEAD request - faster and uses less data than GET
+     * Uses longer timeout (70s) because Render free tier cold start takes 30-60 seconds
+     * Includes retry logic to handle temporary network issues
      */
     suspend fun pingBackend(): Boolean {
         return withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "🏓 Pinging backend...")
+            // Try up to 2 times (initial + 1 retry)
+            repeat(2) { attempt ->
+                try {
+                    Log.d(TAG, "🏓 Pinging backend... (attempt ${attempt + 1})")
 
-                val url = URL(BASE_URL)
-                val connection = url.openConnection() as HttpURLConnection
+                    val url = URL(BASE_URL)
+                    val connection = url.openConnection() as HttpURLConnection
 
-                connection.apply {
-                    requestMethod = "GET"  // Use GET for simple ping
-                    connectTimeout = 10000  // 10 seconds - backend might be waking up
-                    readTimeout = 10000
-                    instanceFollowRedirects = true
+                    connection.apply {
+                        requestMethod = "GET"
+                        // 70 seconds - Render cold start can take 30-60 seconds
+                        connectTimeout = 70000
+                        readTimeout = 70000
+                        instanceFollowRedirects = true
+                    }
+
+                    val responseCode = connection.responseCode
+                    val isAlive = responseCode == HttpURLConnection.HTTP_OK
+
+                    Log.d(TAG, "🏓 Ping result: $responseCode (${if (isAlive) "alive" else "dead"})")
+
+                    connection.disconnect()
+                    
+                    if (isAlive) return@withContext true
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Ping attempt ${attempt + 1} failed: ${e.message}")
+                    if (attempt == 0) {
+                        // Wait 5 seconds before retry
+                        Thread.sleep(5000)
+                    }
                 }
-
-                val responseCode = connection.responseCode
-                val isAlive = responseCode == HttpURLConnection.HTTP_OK
-
-                Log.d(TAG, "🏓 Ping result: $responseCode (${if (isAlive) "alive" else "dead"})")
-
-                connection.disconnect()
-                isAlive
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Ping failed: ${e.message}")
-                false
             }
+            false
         }
     }
 }
