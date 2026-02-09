@@ -23,12 +23,11 @@ interface MessageDao {
      * Get all distinct contacts with their latest message (for conversation list).
      */
     @Query("""
-        SELECT * FROM messages m1 
-        WHERE m1.createdAt = (
-            SELECT MAX(m2.createdAt) FROM messages m2 
-            WHERE m2.contactName = m1.contactName
+        SELECT * FROM messages 
+        WHERE id IN (
+            SELECT MAX(id) FROM messages GROUP BY contactName
         ) 
-        ORDER BY m1.createdAt DESC
+        ORDER BY createdAt DESC
     """)
     fun getConversations(): Flow<List<MessageEntity>>
 

@@ -105,7 +105,7 @@ fun ConversationListScreen(
                     .padding(padding),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
-                items(conversations, key = { it.contactName }) { message ->
+                items(conversations, key = { it.id }) { message ->
                     ConversationItem(
                         message = message,
                         onClick = { onConversationClick(message.contactName) }
