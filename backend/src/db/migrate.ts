@@ -60,6 +60,21 @@ export async function ensureTablesExist(): Promise<boolean> {
             console.log('✅ Database tables already exist');
         }
 
+        // Always ensure feedback table exists (added later)
+        await sql`
+            CREATE TABLE IF NOT EXISTS "feedback" (
+                "id" serial PRIMARY KEY NOT NULL,
+                "message_id" serial,
+                "contact_name" text NOT NULL,
+                "original_message" text NOT NULL,
+                "ai_reply" text NOT NULL,
+                "rating" text NOT NULL,
+                "correction" text,
+                "created_at" timestamp DEFAULT now()
+            );
+        `;
+        console.log('✅ Feedback table ensured');
+
         await sql.end();
         return true;
     } catch (error) {

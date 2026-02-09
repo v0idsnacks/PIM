@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.pim_main.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,6 +20,17 @@ object PimApi {
 
     // Backend URL from BuildConfig (set in local.properties)
     private val BASE_URL = BuildConfig.PIM_BACKEND_URL
+
+    /**
+     * Data class for backend messages
+     */
+    data class BackendMessage(
+        val contactName: String,
+        val messageContent: String,
+        val isFromUser: Boolean,
+        val platform: String,
+        val createdAtMs: Long,
+    )
 
     /**
      * Send a message to the PIM backend and get an AI-generated reply
@@ -150,6 +162,116 @@ object PimApi {
                 }
             }
             false
+        }
+    }
+
+    /**
+     * Fetch all messages from backend for local sync
+     */
+    suspend fun fetchAllMessages(limit: Int = 500): List<BackendMessage> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "📥 Fetching messages from backend...")
+
+                val url = URL("$BASE_URL/messages?limit=$limit&offset=0")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 30000
+                connection.readTimeout = 30000
+
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(response)
+                    val messagesArray = json.optJSONArray("messages") ?: JSONArray()
+
+                    val result = mutableListOf<BackendMessage>()
+                    for (i in 0 until messagesArray.length()) {
+                        val msg = messagesArray.getJSONObject(i)
+                        result.add(
+                            BackendMessage(
+                                contactName = msg.optString("contact_name", msg.optString("contactName", "")),
+                                messageContent = msg.optString("message_content", msg.optString("messageContent", "")),
+                                isFromUser = msg.optBoolean("is_from_user", msg.optBoolean("isFromUser", false)),
+                                platform = msg.optString("platform", "instagram"),
+                                createdAtMs = parseTimestamp(msg.optString("created_at", msg.optString("createdAt", ""))),
+                            )
+                        )
+                    }
+
+                    Log.d(TAG, "✅ Fetched ${result.size} messages from backend")
+                    result
+                } else {
+                    Log.e(TAG, "❌ Fetch messages failed: ${connection.responseCode}")
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Fetch messages error: ${e.message}")
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Submit feedback on an AI reply to the backend
+     */
+    suspend fun submitFeedback(
+        contactName: String,
+        originalMessage: String,
+        aiReply: String,
+        rating: String,
+        correction: String? = null,
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL("$BASE_URL/feedback")
+                val connection = url.openConnection() as HttpURLConnection
+
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+
+                val payload = JSONObject().apply {
+                    put("contactName", contactName)
+                    put("originalMessage", originalMessage)
+                    put("aiReply", aiReply)
+                    put("rating", rating)
+                    if (correction != null) put("correction", correction)
+                }
+
+                connection.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+
+                val success = connection.responseCode == HttpURLConnection.HTTP_OK
+                Log.d(TAG, "📝 Feedback submission: ${if (success) "✅" else "❌"}")
+                success
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Feedback submit error: ${e.message}")
+                false
+            }
+        }
+    }
+
+    /**
+     * Parse ISO timestamp or epoch to milliseconds
+     */
+    private fun parseTimestamp(timestamp: String): Long {
+        return try {
+            if (timestamp.isBlank()) return System.currentTimeMillis()
+            // Try ISO format first
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.parse(timestamp.substringBefore(".").substringBefore("Z"))?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            try {
+                timestamp.toLong()
+            } catch (e2: Exception) {
+                System.currentTimeMillis()
+            }
         }
     }
 }

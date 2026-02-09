@@ -16,7 +16,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,10 +31,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.pim_main.api.PimApi
+import com.example.pim_main.data.PimRepository
 import com.example.pim_main.service.PimForegroundService
 import com.example.pim_main.service.PimNotificationService
 import com.example.pim_main.worker.BackendKeepAliveWorker
+import com.example.pim_main.ui.ConversationListScreen
+import com.example.pim_main.ui.ChatScreen
 import com.example.pim_main.ui.theme.PIM_MAINTheme
 import kotlinx.coroutines.launch
 
@@ -88,6 +99,77 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PimApp() {
     val context = LocalContext.current
+    val navController = rememberNavController()
+    val repository = remember { PimRepository.getInstance(context) }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Only show bottom bar on main screens, not in chat
+    val showBottomBar = currentRoute == "dashboard" || currentRoute == "conversations"
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                        label = { Text("Dashboard") },
+                        selected = currentRoute == "dashboard",
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = true }
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Chat, contentDescription = "Messages") },
+                        label = { Text("Messages") },
+                        selected = currentRoute == "conversations" || currentRoute?.startsWith("chat/") == true,
+                        onClick = {
+                            navController.navigate("conversations") {
+                                popUpTo("dashboard")
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "dashboard",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("dashboard") {
+                DashboardScreen(repository = repository)
+            }
+            composable("conversations") {
+                ConversationListScreen(
+                    repository = repository,
+                    onConversationClick = { contactName ->
+                        navController.navigate("chat/${Uri.encode(contactName)}")
+                    }
+                )
+            }
+            composable(
+                "chat/{contactName}",
+                arguments = listOf(navArgument("contactName") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val contactName = backStackEntry.arguments?.getString("contactName") ?: ""
+                ChatScreen(
+                    contactName = contactName,
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardScreen(repository: PimRepository) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // Check if notification listener is enabled
@@ -104,39 +186,31 @@ fun PimApp() {
         isServiceRunning = PimForegroundService.isRunning(context)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("PIM - Personal Instagram Manager") }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Logo/Title
-            Text(
-                text = ">_<",
-                fontSize = 48.sp
-            )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Logo/Title
+        Text(
+            text = ">_<",
+            fontSize = 48.sp
+        )
 
-            Text(
-                text = "PIM",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
+        Text(
+            text = "PIM",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
 
-            Text(
-                text = "Auto-reply to Instagram DMs with AI",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+        Text(
+            text = "Auto-reply to Instagram DMs with AI",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -277,7 +351,6 @@ fun PimApp() {
                 Text("🔄 Refresh Status")
             }
         }
-    }
 }
 
 @Composable

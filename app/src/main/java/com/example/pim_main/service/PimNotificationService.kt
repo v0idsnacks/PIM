@@ -8,6 +8,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.example.pim_main.api.PimApi
+import com.example.pim_main.data.PimRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,6 +37,9 @@ class PimNotificationService : NotificationListenerService() {
 
     // Coroutine scope for async operations
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Repository for local DB
+    private val repository by lazy { PimRepository.getInstance(applicationContext) }
 
     // Track processed messages to avoid duplicates and feedback loops
     // Key: hash of sender+message, Value: timestamp when processed
@@ -96,6 +100,12 @@ class PimNotificationService : NotificationListenerService() {
         }
         if (extras.getBoolean("android.isGroupSummary", false)) {
             Log.d(TAG, "⏭️ Skipping group summary notification")
+            return
+        }
+
+        // Skip reel/media shares — AI can't meaningfully reply to these
+        if (isReelOrMediaShare(message)) {
+            Log.d(TAG, "🎬 Skipping reel/media share from $sender: $message")
             return
         }
 
@@ -184,6 +194,14 @@ class PimNotificationService : NotificationListenerService() {
 
         Log.d(TAG, "🤖 AI Reply: $reply")
 
+        // Save message pair to local Room DB
+        try {
+            repository.saveMessagePair(sender, message, reply)
+            Log.d(TAG, "💾 Messages saved to local DB")
+        } catch (e: Exception) {
+            Log.e(TAG, "⚠️ Failed to save to local DB: ${e.message}")
+        }
+
         // Track that we're sending this reply with timestamp (to avoid replying to ourselves)
         val normalizedReply = reply.lowercase().trim()
         sentReplies[normalizedReply] = System.currentTimeMillis()
@@ -228,5 +246,42 @@ class PimNotificationService : NotificationListenerService() {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to send reply: ${e.message}", e)
         }
+    }
+
+    /**
+     * Check if a message is a reel, post, photo, video, or other media share
+     * that the AI shouldn't try to reply to.
+     */
+    private fun isReelOrMediaShare(message: String): Boolean {
+        val lower = message.lowercase().trim()
+        return lower.contains("sent you a reel") ||
+                lower.contains("shared a reel") ||
+                lower.contains("sent a reel") ||
+                lower.contains("instagram.com/reel") ||
+                lower.contains("sent an attachment") ||
+                lower.contains("sent you a post") ||
+                lower.contains("shared a post") ||
+                lower.contains("sent a post") ||
+                lower.contains("sent a video") ||
+                lower.contains("sent a photo") ||
+                lower.contains("sent a voice message") ||
+                lower.contains("sent you a story") ||
+                lower.contains("shared a story") ||
+                lower.contains("sent a story") ||
+                lower.contains("sent you a profile") ||
+                lower.contains("shared a profile") ||
+                lower.contains("instagram.com/p/") ||
+                lower.contains("instagram.com/stories/") ||
+                lower == "liked a message" ||
+                lower == "liked your message" ||
+                lower.startsWith("reacted") ||
+                lower.contains("sent you a link") ||
+                // Instagram often shows just the media type
+                lower == "sent a photo" ||
+                lower == "sent a video" ||
+                lower == "sent an audio" ||
+                lower == "shared a reel" ||
+                lower == "reel" ||
+                lower == "post"
     }
 }
