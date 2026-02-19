@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pim_main.data.MessageEntity
 import com.example.pim_main.data.PimRepository
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -29,34 +27,11 @@ fun ConversationListScreen(
     onConversationClick: (String) -> Unit,
 ) {
     val conversations by repository.getConversations().collectAsState(initial = emptyList())
-    val scope = rememberCoroutineScope()
-    var isSyncing by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Conversations") },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                isSyncing = true
-                                repository.syncFromBackend()
-                                isSyncing = false
-                            }
-                        },
-                        enabled = !isSyncing
-                    ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.Sync, contentDescription = "Sync from backend")
-                        }
-                    }
-                }
             )
         }
     ) { padding ->
@@ -86,16 +61,6 @@ fun ConversationListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         fontSize = 14.sp
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedButton(onClick = {
-                        scope.launch {
-                            isSyncing = true
-                            repository.syncFromBackend()
-                            isSyncing = false
-                        }
-                    }) {
-                        Text("Sync from backend")
-                    }
                 }
             }
         } else {

@@ -25,6 +25,9 @@ object HistoryManager {
 
     private val gson = Gson()
 
+    // Lock for thread-safe access to cache and disk I/O
+    private val lock = Any()
+
     /**
      * A single message in the conversation history.
      * role: "user" (they sent) or "model" (we replied)
@@ -48,6 +51,7 @@ object HistoryManager {
 
     /**
      * Load all history from disk into memory (lazy, cached).
+     * MUST be called within synchronized(lock) — callers handle locking.
      */
     private fun loadHistory(context: Context): MutableMap<String, MutableList<Message>> {
         cache?.let { return it }
@@ -94,9 +98,11 @@ object HistoryManager {
      * Returns the last 20 messages (or fewer if less exist).
      */
     fun getHistory(context: Context, username: String): List<Message> {
-        val history = loadHistory(context)
-        val key = username.trim().lowercase()
-        return history[key]?.toList() ?: emptyList()
+        synchronized(lock) {
+            val history = loadHistory(context)
+            val key = username.trim().lowercase()
+            return history[key]?.toList() ?: emptyList()
+        }
     }
 
     /**
@@ -115,24 +121,27 @@ object HistoryManager {
 
     /**
      * Add a message and enforce the 20-message rule.
+     * Fully synchronized to prevent concurrent write corruption.
      */
     private fun addMessage(context: Context, username: String, message: Message) {
-        val history = loadHistory(context)
-        val key = username.trim().lowercase()
+        synchronized(lock) {
+            val history = loadHistory(context)
+            val key = username.trim().lowercase()
 
-        val messages = history.getOrPut(key) { mutableListOf() }
-        messages.add(message)
+            val messages = history.getOrPut(key) { mutableListOf() }
+            messages.add(message)
 
-        // THE 20-MESSAGE RULE: Only keep the last 20 messages
-        if (messages.size > MAX_MESSAGES_PER_CONTACT) {
-            val trimmed = messages.takeLast(MAX_MESSAGES_PER_CONTACT).toMutableList()
-            history[key] = trimmed
+            // THE 20-MESSAGE RULE: Only keep the last 20 messages
+            if (messages.size > MAX_MESSAGES_PER_CONTACT) {
+                val trimmed = messages.takeLast(MAX_MESSAGES_PER_CONTACT).toMutableList()
+                history[key] = trimmed
+            }
+
+            cache = history
+            saveHistory(context, history)
+
+            Log.d(TAG, "💬 [$key] ${message.role}: ${message.content.take(40)}... (${history[key]?.size ?: 0} msgs)")
         }
-
-        cache = history
-        saveHistory(context, history)
-
-        Log.d(TAG, "💬 [$key] ${message.role}: ${message.content.take(40)}... (${history[key]?.size ?: 0} msgs)")
     }
 
     /**
@@ -141,12 +150,14 @@ object HistoryManager {
      * Ready to be serialized into the POST /chat request body.
      */
     fun buildPayload(context: Context, username: String): List<Map<String, String>> {
-        val messages = getHistory(context, username)
-        return messages.map { msg ->
-            mapOf(
-                "role" to msg.role,
-                "content" to msg.content,
-            )
+        synchronized(lock) {
+            val messages = getHistory(context, username)
+            return messages.map { msg ->
+                mapOf(
+                    "role" to msg.role,
+                    "content" to msg.content,
+                )
+            }
         }
     }
 
@@ -154,41 +165,51 @@ object HistoryManager {
      * Clear history for a specific contact.
      */
     fun clearHistory(context: Context, username: String) {
-        val history = loadHistory(context)
-        val key = username.trim().lowercase()
-        history.remove(key)
-        cache = history
-        saveHistory(context, history)
-        Log.d(TAG, "🗑️ Cleared history for $key")
+        synchronized(lock) {
+            val history = loadHistory(context)
+            val key = username.trim().lowercase()
+            history.remove(key)
+            cache = history
+            saveHistory(context, history)
+            Log.d(TAG, "🗑️ Cleared history for $key")
+        }
     }
 
     /**
      * Clear ALL history.
      */
     fun clearAll(context: Context) {
-        cache = mutableMapOf()
-        saveHistory(context, emptyMap())
-        Log.d(TAG, "🗑️ Cleared all history")
+        synchronized(lock) {
+            cache = mutableMapOf()
+            saveHistory(context, emptyMap())
+            Log.d(TAG, "🗑️ Cleared all history")
+        }
     }
 
     /**
      * Get the total number of contacts with history.
      */
     fun getContactCount(context: Context): Int {
-        return loadHistory(context).size
+        synchronized(lock) {
+            return loadHistory(context).size
+        }
     }
 
     /**
      * Get all contact usernames that have history.
      */
     fun getAllContacts(context: Context): List<String> {
-        return loadHistory(context).keys.toList()
+        synchronized(lock) {
+            return loadHistory(context).keys.toList()
+        }
     }
 
     /**
      * Invalidate the in-memory cache (forces re-read from disk on next access).
      */
     fun invalidateCache() {
-        cache = null
+        synchronized(lock) {
+            cache = null
+        }
     }
 }

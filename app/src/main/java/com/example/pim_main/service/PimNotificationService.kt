@@ -186,12 +186,13 @@ class PimNotificationService : NotificationListenerService() {
     ) {
         Log.d(TAG, "🧠 Sending to PIM backend...")
 
-        // Step 1: Save incoming message to local history
-        HistoryManager.addIncomingMessage(applicationContext, sender, message)
-
-        // Step 2: Build the history payload from local JSON
+        // Step 1: Build the history payload BEFORE saving the new message
+        //         (avoids duplicating this message in both history[] and message field)
         val historyPayload = HistoryManager.buildPayload(applicationContext, sender)
         Log.d(TAG, "📚 Bundled ${historyPayload.size} history messages for $sender")
+
+        // Step 2: Save incoming message to local history (after payload is built)
+        HistoryManager.addIncomingMessage(applicationContext, sender, message)
 
         // Step 3: Send to backend with history
         val reply = PimApi.sendMessage(sender, message, historyPayload)

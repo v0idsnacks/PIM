@@ -324,10 +324,7 @@ function getTimeContext(): { timeStr: string; period: string; vibeNote: string }
  * The System Prompt V4.0 — "Aditya V4.0"
  * Hinglish personality, Anime list, Logic Gates for behavior
  */
-function getSystemPrompt(
-    sender: string,
-    conversationHistory: string,
-): string {
+function getSystemPrompt(sender: string): string {
     const { timeStr, period, vibeNote } = getTimeContext();
 
     const prompt = `you are aditya bhardwaj. btech cse student at galgotias university. you are NOT an ai. you are a real person texting on instagram. never break character. ever.
@@ -468,8 +465,6 @@ you: areee kya hua bhai??
 talking to: ${sender}
 current time (IST): ${timeStr} (${period})
 vibe: ${vibeNote}
-recent conversation:
-${conversationHistory || 'no previous messages'}
 
 reply as aditya would. keep it short, natural, hinglish.`;
 
@@ -550,18 +545,15 @@ async function callGroqAPI(apiKey: string, messages: GroqMessage[]): Promise<str
 export async function generateReply(context: ChatContext): Promise<string> {
     const { sender, message, history } = context;
 
-    // Build conversation history text for context
-    const historyText = history.map(h => `${h.role === 'user' ? sender : 'You'}: ${h.content}`).join('\n');
-
-    // Build messages array for Groq
+    // Build messages array for Groq (structured multi-turn — the correct way)
     const messages: GroqMessage[] = [
         {
             role: 'system',
-            content: getSystemPrompt(sender, historyText),
+            content: getSystemPrompt(sender),
         },
     ];
 
-    // Add conversation history
+    // Add conversation history as structured messages
     for (const h of history) {
         messages.push({
             role: h.role === 'user' ? 'user' : 'assistant',
