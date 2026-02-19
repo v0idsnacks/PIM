@@ -9,6 +9,7 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.example.pim_main.api.PimApi
 import com.example.pim_main.data.PimRepository
+import com.example.pim_main.history.HistoryManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -174,7 +175,8 @@ class PimNotificationService : NotificationListenerService() {
     }
 
     /**
-     * Send message to backend and auto-reply
+     * Send message to backend and auto-reply.
+     * Uses HistoryManager to bundle local conversation history.
      */
     private suspend fun processMessage(
         sender: String,
@@ -184,8 +186,15 @@ class PimNotificationService : NotificationListenerService() {
     ) {
         Log.d(TAG, "🧠 Sending to PIM backend...")
 
-        // Get AI reply from backend
-        val reply = PimApi.sendMessage(sender, message)
+        // Step 1: Save incoming message to local history
+        HistoryManager.addIncomingMessage(applicationContext, sender, message)
+
+        // Step 2: Build the history payload from local JSON
+        val historyPayload = HistoryManager.buildPayload(applicationContext, sender)
+        Log.d(TAG, "📚 Bundled ${historyPayload.size} history messages for $sender")
+
+        // Step 3: Send to backend with history
+        val reply = PimApi.sendMessage(sender, message, historyPayload)
 
         if (reply.isNullOrBlank()) {
             Log.e(TAG, "❌ Failed to get reply from backend")
@@ -194,7 +203,10 @@ class PimNotificationService : NotificationListenerService() {
 
         Log.d(TAG, "🤖 AI Reply: $reply")
 
-        // Save message pair to local Room DB
+        // Step 4: Save outgoing reply to local history
+        HistoryManager.addOutgoingMessage(applicationContext, sender, reply)
+
+        // Step 5: Also save to Room DB for UI display
         try {
             repository.saveMessagePair(sender, message, reply)
             Log.d(TAG, "💾 Messages saved to local DB")

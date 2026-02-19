@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">PIM</string>
+    <string name="app_blocker_description">PIM Doom Scroll Blocker monitors Instagram usage time. When your daily 30-minute quota is exceeded, it sends you back to the home screen. Quota khatam. Kaam kar le bhai.</string>
 </resources>

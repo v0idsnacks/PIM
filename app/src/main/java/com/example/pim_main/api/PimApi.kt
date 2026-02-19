@@ -33,16 +33,22 @@ object PimApi {
     )
 
     /**
-     * Send a message to the PIM backend and get an AI-generated reply
+     * Send a message to the PIM backend and get an AI-generated reply.
+     * Now sends the full conversation history so the backend stays stateless.
      *
      * @param sender The contact name (e.g., "radha_01")
      * @param message The incoming message content
+     * @param history The conversation history as a list of {role, content} maps
      * @return The AI-generated reply, or null if failed
      */
-    suspend fun sendMessage(sender: String, message: String): String? {
+    suspend fun sendMessage(
+        sender: String,
+        message: String,
+        history: List<Map<String, String>> = emptyList(),
+    ): String? {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "📤 Sending to backend - Sender: $sender, Message: $message")
+                Log.d(TAG, "📤 Sending to backend - Sender: $sender, Message: $message, History: ${history.size} msgs")
 
                 val url = URL("$BASE_URL/chat")
                 val connection = url.openConnection() as HttpURLConnection
@@ -56,10 +62,19 @@ object PimApi {
                     readTimeout = 30000
                 }
 
-                // Build JSON payload
+                // Build JSON payload with history array
+                val historyArray = JSONArray()
+                for (msg in history) {
+                    val msgObj = JSONObject()
+                    msgObj.put("role", msg["role"] ?: "user")
+                    msgObj.put("content", msg["content"] ?: "")
+                    historyArray.put(msgObj)
+                }
+
                 val jsonPayload = JSONObject().apply {
                     put("sender", sender)
                     put("message", message)
+                    put("history", historyArray)
                 }
 
                 // Send request

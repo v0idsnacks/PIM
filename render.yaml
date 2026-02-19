@@ -10,7 +10,5 @@ services:
         sync: false  # Optional: Set for API key rotation
       - key: GROQ_API_KEY_3
         sync: false  # Optional: Set for API key rotation
-      - key: DATABASE_URL
-        sync: false  # Set manually in Render dashboard
       - key: PORT
         value: 3000

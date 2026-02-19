@@ -2,7 +2,7 @@
 
 # PIM (Personal Intelligence Module)
 
-> **"My digital twin. An AI system that handles my DMs so I don't have to."
+> **"My digital twin. An AI system that handles my DMs so I don't have to."**
 
 ![Status](https://img.shields.io/badge/Status-Active_Dev-success?style=for-the-badge) ![Utility](https://img.shields.io/badge/Utility-Maximum-blue?style=for-the-badge)
 
@@ -24,34 +24,39 @@ PIM isn't built to be sold. It's built to solve a specific problem in my life, u
 
 | Layer | Technology |
 |-------|------------|
-| **Mobile** | Android · Kotlin · NotificationListenerService |
-| **Backend** | Bun · TypeScript · ElysiaJS |
-| **Database** | PostgreSQL · Drizzle ORM |
-| **AI** | Google Gemini (5-key rotation) |
+| **Mobile** | Android · Kotlin · Jetpack Compose |
+| **Backend** | Bun · TypeScript · ElysiaJS (Stateless) |
+| **AI** | Groq · Llama 3.3 70B (3-key rotation) |
+| **Local Storage** | JSON file (history) · Room DB (UI) |
+| **Guardian** | AccessibilityService · UsageStats (Doom Scroll Blocker) |
 | **Deployment** | Render · Docker |
 
 ---
 
-## 🏗️ How It Works
+## 🏗️ Architecture: Local-First & Stateless
+
+The memory lives in your pocket. The backend is a pure intelligence engine.
 
 ```mermaid
-flowchart TD
-    A[📱 Instagram DM Arrives] --> B[🔔 NotificationListenerService Intercepts]
-    B --> C{🛡️ Anti-Feedback Checks}
-    C -->|Cooldown| D[⏳ Skip]
-    C -->|Self-Reply| D
-    C -->|Duplicate| D
-    C -->|Pass| E[📤 POST to Backend /chat]
-    E --> F[🗄️ Fetch Last 10 Messages]
-    F --> G[🤖 Gemini Generates Reply]
-    G --> H[💾 Save to Database]
-    H --> I[📥 Return Response]
-    I --> J[✉️ Auto-Reply via RemoteInput]
-    J --> K[🗑️ Dismiss Notification]
+graph TD
+    subgraph "Android (The Body & Memory)"
+        A[Instagram Notification] -->|Intercept| B(Notification Service)
+        B -->|Check Quota| C{Blocker Logic}
+        
+        C -- "Quota Exceeded >30m" --> D[Auto-Reject / Home Screen]
+        C -- "Quota OK" --> E[History Manager]
+        
+        E -->|Read Last 20 Msgs| F[(Local JSON)]
+        E -->|POST: Msg + History| G[Bun Backend]
+        
+        G -->|Reply| E
+        E -->|Update JSON| F
+        E -->|Reply on Insta| A
+    end
 
-    style A fill:#E1BEE7,stroke:#7B1FA2,color:#000
-    style G fill:#BBDEFB,stroke:#1976D2,color:#000
-    style K fill:#C8E6C9,stroke:#388E3C,color:#000
+    subgraph "Cloud (The Brain)"
+        G -->|Generate Contextual Reply| H[Groq / Llama 3.3]
+    end
 ```
 
 ---
@@ -59,10 +64,12 @@ flowchart TD
 ## ✨ Features
 
 - **🔄 Seamless Integration** — Works silently in the background, no manual intervention needed
-- **🧠 Context-Aware Replies** — Fetches conversation history for coherent responses  
+- **🧠 Context-Aware Replies** — Last 20 messages bundled from local storage for coherent responses
 - **🛡️ Smart Safeguards** — Cooldown timers, duplicate detection, self-reply prevention
-- **🔑 Key Rotation** — Automatic failover across 5 API keys for reliability
-- **📊 Message Logging** — Full conversation history stored in PostgreSQL
+- **🔑 Key Rotation** — Automatic failover across 3+ Groq API keys for reliability
+- **📱 Local-First** — All conversation history stored on-device, backend stores nothing
+- **🚫 Doom Scroll Blocker** — Instagram blocked after 30 min/day via AccessibilityService
+- **⏰ Daily Reset** — Usage quota resets at 4:30 AM IST via WorkManager
 
 ---
 
@@ -70,16 +77,25 @@ flowchart TD
 
 ```
 PIM/
-├── android/          # Android notification interceptor (Kotlin)
-├── app/              # Main Android application
-├── backend/          # TypeScript backend (ElysiaJS + Drizzle)
-│   ├── src/
-│   │   ├── index.ts  # API routes
-│   │   ├── llm.ts    # Gemini integration
-│   │   └── db/       # Database connection
-│   └── drizzle/      # Schema & migrations
+├── app/                # Main Android application (Kotlin + Compose)
+│   └── src/main/java/com/example/pim_main/
+│       ├── api/PimApi.kt              # Backend API client
+│       ├── history/HistoryManager.kt  # Local JSON history (The Memory)
+│       ├── service/
+│       │   ├── PimNotificationService.kt  # Instagram DM interceptor
+│       │   ├── PimForegroundService.kt    # Keep-alive service
+│       │   └── AppBlockerService.kt       # Doom Scroll Blocker
+│       ├── worker/
+│       │   ├── BackendKeepAliveWorker.kt  # Ping backend
+│       │   └── QuotaResetWorker.kt        # Daily quota reset
+│       ├── data/                          # Room DB for UI
+│       └── ui/                            # Compose screens
+├── backend/            # Stateless Brain (Bun + Elysia)
+│   └── src/
+│       ├── index.ts    # API routes (POST /chat with history[])
+│       └── llm.ts      # Groq integration + System Prompt V4.0
 ├── Dockerfile
-└── render.yaml       # Deployment config
+└── render.yaml         # Deployment config
 ```
 
 ---
@@ -87,16 +103,17 @@ PIM/
 ## 🚀 Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/TechTitan360/pim.git
-
 # Backend setup
 cd backend
 bun install
 bun run dev
 
-# Android
-# Open /android in Android Studio and run on device
+# Test it
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"sender":"test","message":"bro kya scene h","history":[]}'
+
+# Android — Open /app in Android Studio and run on device
 ```
 
 ---

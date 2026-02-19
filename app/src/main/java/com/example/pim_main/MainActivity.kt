@@ -42,6 +42,7 @@ import com.example.pim_main.data.PimRepository
 import com.example.pim_main.service.PimForegroundService
 import com.example.pim_main.service.PimNotificationService
 import com.example.pim_main.worker.BackendKeepAliveWorker
+import com.example.pim_main.worker.QuotaResetWorker
 import com.example.pim_main.ui.ConversationListScreen
 import com.example.pim_main.ui.ChatScreen
 import com.example.pim_main.ui.theme.PIM_MAINTheme
@@ -92,6 +93,9 @@ class MainActivity : ComponentActivity() {
 
         // Schedule the keep-alive worker as backup
         BackendKeepAliveWorker.schedule(this)
+
+        // Schedule the doom scroll quota reset at 4:30 AM IST
+        QuotaResetWorker.schedule(this)
     }
 }
 
