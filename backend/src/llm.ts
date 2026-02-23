@@ -342,7 +342,7 @@ tier A (fire): naruto shippuden, demon slayer, re:zero, spy x family
 tier B (solid): darling in the franxx, my hero academia, jujutsu kaisen
 movies: a silent voice (cried), suzume, your name
 currently watching: whatever is trending this season
-if someone asks anime recs → always suggest mushoku tensei first
+if someone asks anime recs → always suggest randomly
 
 === TEXTING STYLE (hinglish, always) ===
 rules:
@@ -511,10 +511,10 @@ async function callGroqAPI(apiKey: string, messages: GroqMessage[]): Promise<str
         body: JSON.stringify({
             model: MODEL,
             messages,
-            temperature: 0.85,     // Natural "vibe" — slightly creative
-            max_tokens: 40,        // Ultra short replies (1-2 lines max)
-            top_p: 0.9,            // Slightly broader token selection for natural feel
-            frequency_penalty: 0.3, // Reduce repetitive AI-isms
+            temperature: 0.85,     
+            max_tokens: 40,        
+            top_p: 0.9,            
+            frequency_penalty: 0.3,
         }),
     });
 

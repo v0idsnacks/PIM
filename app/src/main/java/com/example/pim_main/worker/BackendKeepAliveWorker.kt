@@ -14,8 +14,9 @@ import java.util.concurrent.TimeUnit
  * This worker runs periodically to ping the backend server,
  * preventing cold starts on free-tier hosting services like Render.
  *
- * Runs every 14 minutes (to stay under the 15-minute minimum for Render sleep)
- * Uses battery-optimized scheduling via WorkManager
+ * Runs every 15 minutes (WorkManager's minimum periodic interval).
+ * PimForegroundService handles the faster 8-min pings; this worker is a backup.
+ * Uses battery-optimized scheduling via WorkManager.
  */
 class BackendKeepAliveWorker(
     context: Context,
@@ -26,8 +27,9 @@ class BackendKeepAliveWorker(
         private const val TAG = "BackendKeepAlive"
         private const val WORK_NAME = "pim_backend_keep_alive"
 
-        // Ping interval: 14 minutes (Render sleeps after 15 min of inactivity)
-        private const val PING_INTERVAL_MINUTES = 14L
+        // Ping interval: 15 minutes (WorkManager minimum for periodic work).
+        // PimForegroundService pings every 8 min; this worker is a backup.
+        private const val PING_INTERVAL_MINUTES = 15L
 
         // Flex interval: Allow 2 minutes flex for battery optimization
         private const val FLEX_INTERVAL_MINUTES = 2L

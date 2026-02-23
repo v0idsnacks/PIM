@@ -96,7 +96,9 @@ class AppBlockerService : AccessibilityService() {
      * Query UsageStatsManager for Instagram's total foreground time today.
      *
      * "Today" is defined as since 4:30 AM IST.
-     * This aligns with the reset logic — your day starts at 4:30 AM, not midnight.
+     * Uses INTERVAL_BEST for fine-grained event-level data, then manually
+     * sums totalTimeInForeground from all buckets that overlap our custom window.
+     * INTERVAL_DAILY would use system-midnight boundaries and ignore our 4:30 AM cutoff.
      */
     private fun getInstagramUsageToday(): Long {
         val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
@@ -108,8 +110,10 @@ class AppBlockerService : AccessibilityService() {
         val now = System.currentTimeMillis()
         val startOfDay = getStartOfDayMillis()
 
+        // INTERVAL_BEST returns the finest-grained data available for the window,
+        // respecting our custom 4:30 AM boundary instead of system midnight.
         val usageStats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
+            UsageStatsManager.INTERVAL_BEST,
             startOfDay,
             now,
         )
@@ -119,8 +123,10 @@ class AppBlockerService : AccessibilityService() {
             return 0L
         }
 
-        val instagramStats = usageStats.find { it.packageName == INSTAGRAM_PACKAGE }
-        val totalTime = instagramStats?.totalTimeInForeground ?: 0L
+        // Sum across all buckets for Instagram (INTERVAL_BEST can return multiple)
+        val totalTime = usageStats
+            .filter { it.packageName == INSTAGRAM_PACKAGE }
+            .sumOf { it.totalTimeInForeground }
 
         return totalTime
     }

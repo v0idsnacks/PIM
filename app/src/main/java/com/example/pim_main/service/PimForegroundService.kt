@@ -57,16 +57,10 @@ class PimForegroundService : Service() {
             context.stopService(Intent(context, PimForegroundService::class.java))
         }
 
-        fun isRunning(context: Context): Boolean {
-            val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-            @Suppress("DEPRECATION")
-            for (service in manager.getRunningServices(Integer.MAX_VALUE)) {
-                if (PimForegroundService::class.java.name == service.service.className) {
-                    return true
-                }
-            }
-            return false
-        }
+        @Volatile
+        private var running = false
+
+        fun isRunning(@Suppress("UNUSED_PARAMETER") context: Context): Boolean = running
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -77,6 +71,7 @@ class PimForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        running = true
         Log.d(TAG, "🚀 PIM Foreground Service created")
         createNotificationChannel()
     }
@@ -90,6 +85,7 @@ class PimForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        running = false
         Log.d(TAG, "💀 PIM Foreground Service destroyed")
         pingJob?.cancel()
         serviceScope.cancel()

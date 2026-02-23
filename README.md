@@ -86,8 +86,7 @@ PIM/
 │       │   ├── PimForegroundService.kt    # Keep-alive service
 │       │   └── AppBlockerService.kt       # Doom Scroll Blocker
 │       ├── worker/
-│       │   ├── BackendKeepAliveWorker.kt  # Ping backend
-│       │   └── QuotaResetWorker.kt        # Daily quota reset
+│       │   └── BackendKeepAliveWorker.kt  # Ping backend (15-min backup)
 │       ├── data/                          # Room DB for UI
 │       └── ui/                            # Compose screens
 ├── backend/            # Stateless Brain (Bun + Elysia)

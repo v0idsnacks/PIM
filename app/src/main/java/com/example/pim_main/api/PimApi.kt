@@ -21,8 +21,6 @@ object PimApi {
     // Backend URL from BuildConfig (set in local.properties)
     private val BASE_URL = BuildConfig.PIM_BACKEND_URL
 
-
-
     /**
      * Send a message to the PIM backend and get an AI-generated reply.
      * Now sends the full conversation history so the backend stays stateless.

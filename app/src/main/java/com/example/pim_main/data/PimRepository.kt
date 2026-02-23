@@ -5,8 +5,8 @@ import android.util.Log
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Repository that manages local Room DB and syncs with backend.
- * Room is the primary data source for UI, backend is the source of truth.
+ * Repository that manages the local Room DB.
+ * All conversation data lives on-device — the backend is stateless.
  */
 class PimRepository(context: Context) {
 
@@ -34,9 +34,6 @@ class PimRepository(context: Context) {
 
     fun getMessagesForContact(contactName: String): Flow<List<MessageEntity>> =
         messageDao.getMessagesForContact(contactName)
-
-    fun getUnratedReplies(limit: Int = 50): Flow<List<MessageEntity>> =
-        messageDao.getUnratedReplies(limit)
 
     /**
      * Save a message pair (incoming + AI reply) to local DB.

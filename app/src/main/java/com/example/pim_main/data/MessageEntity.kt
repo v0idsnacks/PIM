@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 /**
  * Room entity for storing messages locally.
- * Mirrors the backend messages table.
+ * All data lives on-device — the backend is stateless.
  */
 @Entity(tableName = "messages")
 data class MessageEntity(
@@ -16,8 +16,8 @@ data class MessageEntity(
     val isFromUser: Boolean = false,     // true = AI replied, false = they sent
     val platform: String = "instagram",
     val createdAt: Long = System.currentTimeMillis(),
-    // Feedback fields (local only)
+    // Feedback fields (local only, stays on-device)
     val feedbackRating: String? = null,  // "good" | "bad" | null
     val feedbackCorrection: String? = null,
-    val feedbackSynced: Boolean = false, // Whether feedback was synced to backend
+    val feedbackSynced: Boolean = false, // Unused legacy column — kept to avoid Room schema migration
 )

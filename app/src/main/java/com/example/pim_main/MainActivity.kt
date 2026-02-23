@@ -61,7 +61,6 @@ import com.example.pim_main.data.PimRepository
 import com.example.pim_main.service.PimForegroundService
 import com.example.pim_main.service.PimNotificationService
 import com.example.pim_main.worker.BackendKeepAliveWorker
-import com.example.pim_main.worker.QuotaResetWorker
 import com.example.pim_main.ui.ConversationListScreen
 import com.example.pim_main.ui.ChatScreen
 import com.example.pim_main.ui.theme.PIM_MAINTheme
@@ -107,7 +106,6 @@ class MainActivity : ComponentActivity() {
     private fun startPimServices() {
         PimForegroundService.start(this)
         BackendKeepAliveWorker.schedule(this)
-        QuotaResetWorker.schedule(this)
     }
 }
 
